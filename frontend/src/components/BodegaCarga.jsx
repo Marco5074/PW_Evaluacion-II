@@ -10,6 +10,7 @@ function BodegaCarga({
   inventario,
   itemsCargados,
   creditosDisponibles,
+  procesando,
   onActualizar,
   onEliminar,
 }) {
@@ -48,7 +49,7 @@ function BodegaCarga({
                       Para quitar la última se usa Desembarcar. */}
                   <Button
                     color="secondary"
-                    disabled={item.cantidad <= 1}
+                    disabled={procesando || item.cantidad <= 1}
                     onClick={() =>
                       onActualizar(item.id, item.cantidad - 1)
                     }
@@ -59,7 +60,7 @@ function BodegaCarga({
                   {/* Sumamos una unidad si las condiciones lo permiten. */}
                   <Button
                     color="secondary"
-                    disabled={!puedeAumentar}
+                    disabled={procesando || !puedeAumentar}
                     onClick={() =>
                       onActualizar(item.id, item.cantidad + 1)
                     }
@@ -73,6 +74,7 @@ function BodegaCarga({
                   color="danger"
                   outline
                   size="sm"
+                  disabled={procesando}
                   onClick={() => onEliminar(item.id)}
                 >
                   Desembarcar

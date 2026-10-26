@@ -21,11 +21,13 @@ function Catalogo({ inventario, procesando, onAgregar }) {
             md="4" = 3 por fila en pantallas medianas; xs="12" = 1 por fila en móvil */}
         {inventario.map((suministro) => (
           <Col md="4" xs="12" key={suministro.id}>
-            <Card className="mb-3">
-              <CardBody>
-                <CardTitle tag="h5">{suministro.nombre}</CardTitle>
+            <Card className="mb-3 h-100">
+              <CardBody className="d-flex flex-column">
+                <CardTitle tag="h5" className="fs-6 fw-bold">
+                  {suministro.nombre}
+                </CardTitle>
 
-                <CardSubtitle className="mb-2 text-muted" tag="h6">
+                <CardSubtitle className="mb-2 text-muted small" tag="h6">
                   {suministro.categoria ?? 'Sin categoría'}
                 </CardSubtitle>
 
@@ -33,16 +35,19 @@ function Catalogo({ inventario, procesando, onAgregar }) {
                   <Badge color="success">{suministro.precio} Cr</Badge>
                 </p>
 
-                <p className="mb-3">Stock disponible: {suministro.stock}</p>
+                <p className="mb-3 small">
+                  Stock disponible: {suministro.stock}
+                </p>
 
-                {/* sin stock: botón gris y desactivado. con stock: añade 1 unidad. */}
+                {/* mt-auto empuja el botón al fondo para que todos queden alineados. */}
                 {suministro.stock === 0 ? (
-                  <Button color="secondary" disabled>
+                  <Button color="secondary" disabled className="mt-auto w-100">
                     Agotado en Base
                   </Button>
                 ) : (
                   <Button
                     color="primary"
+                    className="mt-auto w-100"
                     disabled={procesando}
                     onClick={() => onAgregar(suministro.id)}
                   >

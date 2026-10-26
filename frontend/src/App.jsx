@@ -137,6 +137,48 @@ function App({ onSesionExpirada }) {
     }
   }
 
+  //botón "añadir a la Nave" del catálogo: agrega una unidad.
+  //con el servidor real esto será agregarACarga(id, 1) y luego volver a
+  // pedir inventario y carga; mientras tanto se simula con los datos de prueba
+  function agregarSuministro(id) {
+    if (procesando || cargando) {
+      return
+    }
+
+    const suministro = inventario.find((producto) => producto.id === id)
+
+    if (!suministro) {
+      setError('Suministro no encontrado')
+      return
+    }
+
+    // Mismas reglas que el servidor, para que la alerta se vea al fallar.
+    if (suministro.stock < 1) {
+      setError('Stock en base insuficiente')
+      return
+    }
+
+    if (total + suministro.precio > presupuestoInicial) {
+      setError('Créditos insuficientes para esta cantidad')
+      return
+    }
+
+    return ejecutarConEspera(() => {
+      setItemsCargados((actuales) => {
+        const existente = actuales.find((item) => item.id === id)
+
+        //si ya estaba cargado sumamos 1; si no, lo agregamos con cantidad 1
+        if (existente) {
+          return actuales.map((item) =>
+            item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
+          )
+        }
+
+        return [...actuales, { id, cantidad: 1 }]
+      })
+    })
+  }
+
   function actualizarCantidad(id, nuevaCantidad) {
     if (procesando || cargando) {
       return
@@ -208,17 +250,16 @@ function App({ onSesionExpirada }) {
         </p>
       )}
 
-      {/* Mensaje temporal para comprobar el estado de error.
-          Michelle integrará aquí su componente de alerta definitivo. */}
-      {error && (
-        <p role="alert" className="text-danger">
-          {error}
-        </p>
-      )}
+      {/* alerta amarilla con el mensaje de error que llego en el catch */}
+      <AlertaError mensaje={error} onCerrar={() => setError(null)} />
 
       <Row>
         <Col md="8">
-          <p>Aquí se integrará el catálogo de suministros.</p>
+          <Catalogo
+            inventario={inventario}
+            procesando={procesando}
+            onAgregar={agregarSuministro}
+          />
         </Col>
 
         <Col md="4">

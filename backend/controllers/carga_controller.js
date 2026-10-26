@@ -72,3 +72,31 @@ export const agregarACarga = (req, res) => {
 export const actualizarUnidades = (req, res) => {
     // aquí va la lógica
 };
+
+// DELETE /api/carga/eliminar/:id
+export const eliminarSuministro = (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({ mensaje: "ID de suministro no válido" });
+    }
+
+    const indice = carga.itemsCargados.findIndex((item) => item.id === id);
+    if (indice === -1) {
+        return res.status(404).json({ mensaje: "Suministro no encontrado en la carga" });
+    }
+
+    const suministro = inventario.find((item) => item.id === id);
+    if (!suministro) {
+        return res.status(404).json({ mensaje: "Suministro no encontrado en el inventario" });
+    }
+
+    const [itemEliminado] = carga.itemsCargados.splice(indice, 1);
+    suministro.stock += itemEliminado.cantidad;
+
+    res.json({
+        mensaje: "Suministro eliminado de la carga",
+        creditos: carga.creditos,
+        itemsCargados: carga.itemsCargados,
+        total: calcularTotal(),
+    });
+};

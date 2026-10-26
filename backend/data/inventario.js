@@ -11,7 +11,20 @@ export const inventario = [
 ];
 
 
+export const CREDITOS_INICIALES = 500;
+
+const stockInicial = new Map(inventario.map(({ id, stock }) => [id, stock]));
+
 export const carga = {
-  creditos: 500,
+  creditos: CREDITOS_INICIALES,
   itemsCargados: [],
+};
+
+export const restablecerEstadoInicial = () => {
+  inventario.forEach((suministro) => {
+    suministro.stock = stockInicial.get(suministro.id);
+  });
+
+  carga.creditos = CREDITOS_INICIALES;
+  carga.itemsCargados.length = 0;
 };

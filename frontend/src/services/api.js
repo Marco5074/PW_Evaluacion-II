@@ -83,3 +83,31 @@ export function eliminarSuministro(id) {
     }
   )
 }
+
+// envía un intento de temperatura y eñ servidor responde
+// con "más alta", "más baja" o "estabilizado"
+export function ajustarTemperatura(temperatura) {
+  return solicitar('/adjust', {
+    method: 'POST',
+    body: JSON.stringify({ temperatura }),
+  })
+}
+
+//pide al servidor una nueva temperatura de estabilizacion
+export function reiniciarReactor() {
+  return solicitar('/reboot', {
+    method: 'POST',
+  })
+}
+
+//consulta cuánto tiempo le queda a la sesion
+export function obtenerSesion() {
+  return solicitar('/api/sesion')
+}
+
+//deja todo como al inicio: carga vacía, 500 créditos y stock original
+export function reiniciarSesion() {
+  return solicitar('/api/sesion/reiniciar', {
+    method: 'POST',
+  })
+}

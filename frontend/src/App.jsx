@@ -1,65 +1,54 @@
 import { useEffect, useState } from 'react'
-import { Container, Row, Col } from 'reactstrap'
+import { Button, Container, Row, Col } from 'reactstrap'
 import PanelMision from './components/PanelMision.jsx'
 import BodegaCarga from './components/BodegaCarga.jsx'
+import Catalogo from './components/Catalogo.jsx'
+import AlertaError from './components/AlertaError.jsx'
+import {
+  obtenerInventario,
+  obtenerCarga,
+  agregarACarga,
+  eliminarSuministro,
+} from './services/api.js'
 
-// Datos temporales para trabajar sin depender del servidor.
-const inventarioInicial = [
-  { id: 201, nombre: 'Tanque de Oxígeno XL', precio: 50, stock: 5 },
-  { id: 206, nombre: 'Traje Espacial', precio: 120, stock: 1 },
-  { id: 207, nombre: 'Panel Solar Portátil', precio: 80, stock: 3 },
-]
+// Consultamos ambos datos reales para mantenerlos sincronizados.
+async function consultarMision() {
+  const [inventario, carga] = await Promise.all([
+    obtenerInventario(),
+    obtenerCarga(),
+  ])
 
-const cargaInicial = [
-  { id: 201, cantidad: 2 },
-  { id: 206, cantidad: 1 },
-  { id: 207, cantidad: 1 },
-]
-
-// Simula la consulta inicial de datos.
-// Después se sustituirá por las consultas de api.js.
-async function obtenerDatosDePrueba() {
-  await new Promise((resolver) => setTimeout(resolver, 500))
-
-  return {
-    inventario: inventarioInicial,
-    itemsCargados: cargaInicial,
-  }
+  return { inventario, carga }
 }
 
-function App() {
-  const presupuestoInicial = 500
-
-  // Guardamos el inventario y la carga que recibe la pantalla.
-  const [inventarioBase, setInventarioBase] = useState([])
-  const [itemsCargados, setItemsCargados] = useState([])
-
-  // Distinguimos la carga inicial de las acciones de los botones.
+// Principal entrega la función que muestra la pantalla de sesión expirada.
+function App({ onSesionExpirada }) {
+  const [inventario, setInventario] = useState([])
+  const [carga, setCarga] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [procesando, setProcesando] = useState(false)
-
-  // Guarda el mensaje de una operación que haya fallado.
   const [error, setError] = useState(null)
+  const [intento, setIntento] = useState(0)
 
-  // Pedimos los datos cuando se abre esta pantalla.
   useEffect(() => {
-    // Evita actualizar una pantalla que ya se haya cerrado.
     let activo = true
 
     async function cargarMision() {
       try {
-        const datos = await obtenerDatosDePrueba()
+        const datos = await consultarMision()
 
-        if (!activo) {
-          return
-        }
+        if (!activo) return
 
-        setInventarioBase(datos.inventario)
-        setItemsCargados(datos.itemsCargados)
+        setInventario(datos.inventario)
+        setCarga(datos.carga)
         setError(null)
       } catch (fallo) {
         if (activo) {
-          setError(fallo.message || 'No se pudo cargar la misión.')
+          setError(fallo)
+
+          if (fallo.expirada) {
+            onSesionExpirada?.()
+          }
         }
       } finally {
         if (activo) {
@@ -70,114 +59,50 @@ function App() {
 
     cargarMision()
 
-    // React ejecuta esta limpieza al retirar la pantalla.
     return () => {
       activo = false
     }
-  }, [])
+  }, [intento, onSesionExpirada])
 
-  // En esta demostración descontamos del stock lo cargado en la nave.
-  const inventario = inventarioBase.map((producto) => {
-    const item = itemsCargados.find(
-      (cargado) => cargado.id === producto.id
-    )
+  function reintentar() {
+    setCargando(true)
+    setError(null)
+    setIntento((actual) => actual + 1)
+  }
 
-    return {
-      ...producto,
-      stock: producto.stock - (item?.cantidad ?? 0),
-    }
-  })
-
-  // Sumamos precio por cantidad para obtener el costo de la carga.
-  const total = itemsCargados.reduce((acumulado, item) => {
-    const suministro = inventario.find(
-      (producto) => producto.id === item.id
-    )
-
-    if (!suministro) {
-      return acumulado
-    }
-
-    return acumulado + suministro.precio * item.cantidad
-  }, 0)
-
-  const creditosDisponibles = presupuestoInicial - total
-
-  // Controla la espera, los errores y el bloqueo de botones.
-  async function ejecutarConEspera(accion) {
-    if (procesando || cargando) {
-      return
-    }
+  // Añadir y desembarcar comparten la espera y la actualización de datos.
+  async function ejecutarAccion(accion) {
+    if (procesando || cargando) return
 
     setProcesando(true)
     setError(null)
 
     try {
-      // Espera simulada: después se reemplazará por la petición real.
-      await new Promise((resolver) => setTimeout(resolver, 700))
-
-      // También esperamos a que termine la acción.
       await accion()
+      const datos = await consultarMision()
+
+      setInventario(datos.inventario)
+      setCarga(datos.carga)
     } catch (fallo) {
-      setError(fallo.message || 'No se pudo completar la operación.')
+      setError(fallo)
+
+      if (fallo.expirada) {
+        onSesionExpirada?.()
+      }
     } finally {
       setProcesando(false)
     }
   }
 
-  function actualizarCantidad(id, nuevaCantidad) {
-    if (procesando || cargando) {
-      return
-    }
-
-    const item = itemsCargados.find((cargado) => cargado.id === id)
-    const suministro = inventario.find((producto) => producto.id === id)
-
-    // Comprobamos que el producto y la cantidad sean válidos.
-    if (
-      !item ||
-      !suministro ||
-      !Number.isInteger(nuevaCantidad) ||
-      nuevaCantidad < 1
-    ) {
-      setError('La cantidad o el suministro no son válidos.')
-      return
-    }
-
-    const diferencia = nuevaCantidad - item.cantidad
-
-    if (diferencia > suministro.stock) {
-      setError('Stock en base insuficiente')
-      return
-    }
-
-    if (total + diferencia * suministro.precio > presupuestoInicial) {
-      setError('Créditos insuficientes para esta cantidad')
-      return
-    }
-
-    // Cambiamos únicamente el suministro seleccionado.
-    return ejecutarConEspera(() => {
-      setItemsCargados((actuales) =>
-        actuales.map((cargado) =>
-          cargado.id === id
-            ? { ...cargado, cantidad: nuevaCantidad }
-            : cargado
-        )
-      )
-    })
+  // El catálogo de Michelle utiliza esta función para añadir una unidad.
+  function agregarSuministro(id) {
+    return ejecutarAccion(() => agregarACarga(id, 1))
   }
 
-  // Eliminamos todas las unidades del suministro seleccionado.
   function desembarcar(id) {
-    return ejecutarConEspera(() => {
-      setItemsCargados((actuales) =>
-        actuales.filter((item) => item.id !== id)
-      )
-    })
+    return ejecutarAccion(() => eliminarSuministro(id))
   }
 
-  // Durante la consulta inicial todavía no mostramos la bodega.
   if (cargando) {
     return (
       <Container className="py-4 text-start">
@@ -186,9 +111,30 @@ function App() {
     )
   }
 
+  if (!carga) {
+    return (
+      <Container className="py-4 text-start">
+        <AlertaError
+          mensaje={error?.message || 'No se pudo cargar la misión.'}
+          onCerrar={() => setError(null)}
+        />
+
+        <Button color="primary" onClick={reintentar}>
+          Volver a consultar
+        </Button>
+      </Container>
+    )
+  }
+
+  // El backend actual devuelve el presupuesto inicial y el total por separado.
+  const creditosDisponibles = carga.creditos - carga.total
+
   return (
     <Container className="py-4 text-start">
-      <PanelMision creditos={creditosDisponibles} total={total} />
+      <PanelMision
+        creditos={creditosDisponibles}
+        total={carga.total}
+      />
 
       {procesando && (
         <p role="status" className="text-info">
@@ -196,26 +142,39 @@ function App() {
         </p>
       )}
 
-      {/* Mensaje temporal para comprobar el estado de error.
-          Michelle integrará aquí su componente de alerta definitivo. */}
+      <AlertaError
+        mensaje={error?.message}
+        onCerrar={() => setError(null)}
+      />
+
       {error && (
-        <p role="alert" className="text-danger">
-          {error}
-        </p>
+        <Button
+          color="primary"
+          size="sm"
+          className="mb-3"
+          disabled={procesando}
+          onClick={reintentar}
+        >
+          Volver a consultar
+        </Button>
       )}
 
       <Row>
         <Col md="8">
-          <p>Aquí se integrará el catálogo de suministros.</p>
+          <Catalogo
+            inventario={inventario}
+            procesando={procesando}
+            onAgregar={agregarSuministro}
+          />
         </Col>
 
         <Col md="4">
+          {/* No entregamos onActualizar hasta que la ruta PUT esté lista. */}
           <BodegaCarga
             inventario={inventario}
-            itemsCargados={itemsCargados}
+            itemsCargados={carga.itemsCargados}
             creditosDisponibles={creditosDisponibles}
             procesando={procesando}
-            onActualizar={actualizarCantidad}
             onEliminar={desembarcar}
           />
         </Col>

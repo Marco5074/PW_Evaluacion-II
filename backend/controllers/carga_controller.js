@@ -38,6 +38,10 @@ export const obtenerCarga = (req, res) => {
 export const agregarACarga = (req, res) => {
     const { equipoId, cantidad } = req.body;
 
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+        return res.status(400).json({ mensaje: "La cantidad debe ser un entero mayor a 0" });
+    }
+
     const suministro = inventario.find((s) => s.id === equipoId);
     if (!suministro) {
         return res.status(404).json({ mensaje: "Suministro no encontrado" });
@@ -70,7 +74,49 @@ export const agregarACarga = (req, res) => {
 
 // PUT /api/carga/actualizar-unidades/:id
 export const actualizarUnidades = (req, res) => {
-    // aquí va la lógica
+    const id = Number(req.params.id);
+    const nuevaCantidad = req.body.cantidad;
+
+    if (!Number.isInteger(nuevaCantidad) || nuevaCantidad < 0) {
+        return res.status(400).json({ mensaje: "La cantidad debe ser un entero mayor o igual a 0" });
+    }
+
+
+    const suministro = inventario.find((s) => s.id === id);
+    if (!suministro) {
+        return res.status(404).json({ mensaje: "Suministro no encontrado" });
+    }
+
+    const item = carga.itemsCargados.find((i) => i.id === id);
+    if (!item) {
+        return res.status(404).json({ mensaje: "El suministro no está en la carga" });
+    }
+
+    // diferencia > 0: sube (toma del stock). diferencia < 0: baja (devuelve al stock)
+    const diferencia = nuevaCantidad - item.cantidad;
+
+    if (diferencia > 0) {
+        if (suministro.stock < diferencia) {
+            return res.status(400).json({ mensaje: "Stock en base insuficiente" });
+        }
+        if (calcularTotal() + diferencia * suministro.precio > carga.creditos) {
+            return res.status(400).json({ mensaje: "Créditos insuficientes para esta cantidad" });
+        }
+    }
+
+    suministro.stock -= diferencia;
+    item.cantidad = nuevaCantidad;
+
+    // Si queda en 0, se quita de la carga
+    if (nuevaCantidad === 0) {
+        carga.itemsCargados = carga.itemsCargados.filter((i) => i.id !== id);
+    }
+
+    res.json({
+        creditos: carga.creditos,
+        itemsCargados: carga.itemsCargados,
+        total: calcularTotal(),
+    });
 };
 
 // DELETE /api/carga/eliminar/:id

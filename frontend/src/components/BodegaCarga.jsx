@@ -14,6 +14,8 @@ function BodegaCarga({
   onActualizar,
   onEliminar,
 }) {
+  const puedeActualizar = typeof onActualizar === 'function'
+
   return (
     <section>
       <h2>Tu bodega de carga</h2>
@@ -49,7 +51,7 @@ function BodegaCarga({
                       Para quitar la última se usa Desembarcar. */}
                   <Button
                     color="secondary"
-                    disabled={procesando || item.cantidad <= 1}
+                    disabled={procesando || !puedeActualizar || item.cantidad <= 1}
                     onClick={() =>
                       onActualizar(item.id, item.cantidad - 1)
                     }
@@ -60,7 +62,7 @@ function BodegaCarga({
                   {/* Sumamos una unidad si las condiciones lo permiten. */}
                   <Button
                     color="secondary"
-                    disabled={procesando || !puedeAumentar}
+                    disabled={procesando || !puedeActualizar || !puedeAumentar}
                     onClick={() =>
                       onActualizar(item.id, item.cantidad + 1)
                     }

@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { Container, Row, Col } from 'reactstrap'
 import PanelMision from './components/PanelMision.jsx'
 import BodegaCarga from './components/BodegaCarga.jsx'
+import Catalogo from './components/Catalogo.jsx'
+import AlertaError from './components/AlertaError.jsx'
 
 // Datos temporales para trabajar sin depender del servidor.
 const inventarioInicial = [
-  { id: 201, nombre: 'Tanque de Oxígeno XL', precio: 50, stock: 5 },
-  { id: 206, nombre: 'Traje Espacial', precio: 120, stock: 1 },
-  { id: 207, nombre: 'Panel Solar Portátil', precio: 80, stock: 3 },
+  { id: 201, nombre: 'Tanque de Oxígeno XL', precio: 50, stock: 5, categoria: 'Soporte Vital' },
+  { id: 206, nombre: 'Traje Espacial', precio: 120, stock: 1, categoria: 'Equipo' },
+  { id: 207, nombre: 'Panel Solar Portátil', precio: 80, stock: 3, categoria: 'Energía' },
 ]
 
 const cargaInicial = [
@@ -26,8 +28,9 @@ async function obtenerDatosDePrueba() {
     itemsCargados: cargaInicial,
   }
 }
-
-function App() {
+// onSesionExpirada la entrega Principal.jsx: se llama cuando el servidor
+// responde { expirada: true } para mostrar la pantalla de sesión expirada.
+function App({ onSesionExpirada }) {
   const presupuestoInicial = 500
 
   // Guardamos el inventario y la carga que recibe la pantalla.
@@ -59,7 +62,11 @@ function App() {
         setError(null)
       } catch (fallo) {
         if (activo) {
-          setError(fallo.message || 'No se pudo cargar la misión.')
+          if (fallo.expirada) {
+            onSesionExpirada?.()
+          } else {
+            setError(fallo.message || 'No se pudo cargar la misión.')
+          }
         }
       } finally {
         if (activo) {
@@ -74,7 +81,7 @@ function App() {
     return () => {
       activo = false
     }
-  }, [])
+  }, [onSesionExpirada])
 
   // En esta demostración descontamos del stock lo cargado en la nave.
   const inventario = inventarioBase.map((producto) => {
@@ -119,7 +126,12 @@ function App() {
       // También esperamos a que termine la acción.
       await accion()
     } catch (fallo) {
-      setError(fallo.message || 'No se pudo completar la operación.')
+      if (fallo.expirada) {
+        // Se acabó el tiempo: la pantalla principal pide empezar de nuevo.
+        onSesionExpirada?.()
+      } else {
+        setError(fallo.message || 'No se pudo completar la operación.')
+      }
     } finally {
       setProcesando(false)
     }

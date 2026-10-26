@@ -1,20 +1,35 @@
 import { useCallback, useState } from 'react'
-import { Container, Nav, NavItem, NavLink } from 'reactstrap'
+import {
+  Button,
+  Card,
+  CardBody,
+  CardSubtitle,
+  CardText,
+  CardTitle,
+  Col,
+  Container,
+  Nav,
+  Navbar,
+  NavbarBrand,
+  NavItem,
+  NavLink,
+  Row,
+} from 'reactstrap'
 import App from './App.jsx'
 import Reactor from './components/Reactor.jsx'
 import SesionExpirada from './components/SesionExpirada.jsx'
 
-//pantalla principal: menú con pestañas para cambiar entre los dos
-// ejercicios y control de la sesión expirada
+// Pantalla principal: barra de navegación, pantalla de inicio con los dos
+// ejercicios y control de la sesión expirada.
 function Principal() {
-  //pestaña activa: 'reactor' (Ejercicio 1) o 'bodega' (Ejercicio 2)
-  const [vista, setVista] = useState('reactor')
+  // Pantalla activa: 'inicio', 'reactor' (Ejercicio 1) o 'bodega' (Ejercicio 2).
+  const [vista, setVista] = useState('inicio')
 
-  // true cuando el servidor respondió { expirada: true }
+  // true cuando el servidor respondió { expirada: true }.
   const [expirada, setExpirada] = useState(false)
 
-  //cambia al reiniciar la sesión. Se usa como "key" para que React
-  // vuelva a montar el ejercicio 2 y pida los datos otra vez
+  // Cambia al reiniciar la sesión. Se usa como "key" para que React
+  // vuelva a montar el Ejercicio 2 y pida los datos otra vez.
   const [version, setVersion] = useState(0)
 
   // useCallback mantiene la misma función entre renders, así el useEffect
@@ -26,7 +41,7 @@ function Principal() {
     setVersion((actual) => actual + 1)
   }
 
-  //sesion expirada: reemplaza todo por la pantalla de "empezar de nuevo"
+  // Sesión expirada: reemplaza todo por la pantalla de "empezar de nuevo".
   if (expirada) {
     return (
       <Container className="py-4">
@@ -37,10 +52,22 @@ function Principal() {
 
   return (
     <>
-      <Container className="pt-4 text-start">
-        <h1 className="h3">AstroLogistics Ltd.</h1>
+      {/* Barra superior: siempre visible para cambiar de pantalla. */}
+      <Navbar dark color="dark" expand className="px-3">
+        <NavbarBrand>AstroLogistics Ltd.</NavbarBrand>
 
-        <Nav tabs>
+        <Nav className="ms-auto" navbar>
+          <NavItem>
+            <NavLink
+              tag="button"
+              type="button"
+              active={vista === 'inicio'}
+              onClick={() => setVista('inicio')}
+            >
+              Inicio
+            </NavLink>
+          </NavItem>
+
           <NavItem>
             <NavLink
               tag="button"
@@ -48,7 +75,7 @@ function Principal() {
               active={vista === 'reactor'}
               onClick={() => setVista('reactor')}
             >
-              Ejercicio 1: Reactor
+              Ejercicio 1
             </NavLink>
           </NavItem>
 
@@ -59,14 +86,67 @@ function Principal() {
               active={vista === 'bodega'}
               onClick={() => setVista('bodega')}
             >
-              Ejercicio 2: Bodega de la nave
+              Ejercicio 2
             </NavLink>
           </NavItem>
         </Nav>
-      </Container>
+      </Navbar>
 
-      {/* mostramos una pestaña y ocultamos la otra con d-none, así el
-          historial del reactor y la carga no se pierden al cambiar */}
+      {/* Pantalla de inicio: dos tarjetas para elegir el ejercicio.
+          flex-grow-1 + align-items-center centran el contenido en el espacio
+          que queda debajo de la barra. */}
+      {vista === 'inicio' && (
+        <div className="flex-grow-1 d-flex align-items-center">
+          <Container className="py-5 text-center">
+            <h1 className="h3 mb-4">Elige un ejercicio</h1>
+
+                        <Row className="justify-content-center">
+              <Col md="6" xs="12">
+                <Card className="mb-3 h-100">
+                  <CardBody className="d-flex flex-column">
+                    <CardSubtitle tag="h6" className="text-muted small mb-1">
+                      Ejercicio 1
+                    </CardSubtitle>
+                    <CardTitle tag="h5">Estabiliza el Reactor</CardTitle>
+                    <CardText>Adivina la temperatura correcta.</CardText>
+                    <Button
+                      color="primary"
+                      className="mt-auto align-self-center"
+                      onClick={() => setVista('reactor')}
+                    >
+                      Entrar
+                    </Button>
+                  </CardBody>
+                </Card>
+              </Col>
+
+              <Col md="6" xs="12">
+                <Card className="mb-3 h-100">
+                  <CardBody className="d-flex flex-column">
+                    <CardSubtitle tag="h6" className="text-muted small mb-1">
+                      Ejercicio 2
+                    </CardSubtitle>
+                    <CardTitle tag="h5">Bodega de la nave</CardTitle>
+                    <CardText>
+                      Arma la carga con créditos y stock limitados.
+                    </CardText>
+                    <Button
+                      color="primary"
+                      className="mt-auto align-self-center"
+                      onClick={() => setVista('bodega')}
+                    >
+                      Entrar
+                    </Button>
+                  </CardBody>
+                </Card>
+              </Col>
+            </Row>
+          </Container>
+        </div>
+      )}
+
+      {/* Los dos ejercicios quedan montados y se ocultan con d-none, así el
+          historial del reactor y la carga no se pierden al cambiar. */}
       <div className={vista === 'reactor' ? '' : 'd-none'}>
         <Container className="py-4 text-start">
           <Reactor onSesionExpirada={alExpirar} />

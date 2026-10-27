@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Button, Container, Row, Col } from 'reactstrap'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Button, Container, Row, Col } from 'reactstrap'
 import PanelMision from './components/PanelMision.jsx'
 import BodegaCarga from './components/BodegaCarga.jsx'
 import Catalogo from './components/Catalogo.jsx'
@@ -11,6 +11,8 @@ import {
   agregarACarga,
   actualizarUnidades,
   eliminarSuministro,
+  confirmarCarga,
+  reiniciarSesion,
 } from './services/api.js'
 
 // Consultamos ambos datos reales para mantenerlos sincronizados.
@@ -19,11 +21,9 @@ async function consultarMision() {
     obtenerInventario(),
     obtenerCarga(),
   ])
-
   return { inventario, carga }
 }
 
-// Principal entrega la función que muestra la pantalla de sesión expirada.
 function App({ onSesionExpirada }) {
   const [inventario, setInventario] = useState([])
   const [carga, setCarga] = useState(null)
@@ -31,60 +31,61 @@ function App({ onSesionExpirada }) {
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState(null)
   const [intento, setIntento] = useState(0)
+  // La referencia permite cancelar la espera al confirmar la misión.
+  const temporizadorSesion = useRef(null)
 
   useEffect(() => {
     let activo = true
-    let temporizador
+
+    function manejarFallo(fallo) {
+      if (!activo) return
+      setError(fallo)
+      if (fallo.expirada) onSesionExpirada?.()
+    }
+
+    async function vigilarSesion() {
+      const sesion = await obtenerSesion()
+      if (!activo) return false
+
+      clearTimeout(temporizadorSesion.current)
+      if (sesion.confirmada) {
+        // También reconoce una confirmación hecha en otra pestaña.
+        setCarga((actual) => actual ? { ...actual, confirmada: true } : actual)
+        return true
+      }
+      if (sesion.tiempoRestante <= 0) {
+        onSesionExpirada?.()
+        return false
+      }
+
+      // Al llegar al límite consultamos al servidor antes de cerrar.
+      // Así una confirmación aceptada justo antes del límite se conserva.
+      temporizadorSesion.current = setTimeout(() => {
+        vigilarSesion().catch(manejarFallo)
+      }, sesion.tiempoRestante)
+      return true
+    }
 
     async function cargarMision() {
       try {
-        // Pedimos el tiempo que queda; no comenzamos cinco minutos nuevos.
-        const sesion = await obtenerSesion()
-
-        if (!activo) return
-
-        // Si ya se acabó el tiempo, mostramos el aviso inmediatamente.
-        if (sesion.tiempoRestante <= 0) {
-          onSesionExpirada?.()
-          return
-        }
-
-        // Mostramos el aviso al vencer el tiempo, sin esperar otro clic.
-        temporizador = setTimeout(() => {
-          if (activo) {
-            onSesionExpirada?.()
-          }
-        }, sesion.tiempoRestante)
-
-        // Cargamos el inventario y la bodega como antes.
+        if (!await vigilarSesion()) return
         const datos = await consultarMision()
-
         if (!activo) return
 
         setInventario(datos.inventario)
         setCarga(datos.carga)
         setError(null)
       } catch (fallo) {
-        if (activo) {
-          setError(fallo)
-
-          if (fallo.expirada) {
-            onSesionExpirada?.()
-          }
-        }
+        manejarFallo(fallo)
       } finally {
-        if (activo) {
-          setCargando(false)
-        }
+        if (activo) setCargando(false)
       }
     }
 
     cargarMision()
-
     return () => {
-      // Cancelamos el aviso anterior al salir o volver a consultar.
       activo = false
-      clearTimeout(temporizador)
+      clearTimeout(temporizadorSesion.current)
     }
   }, [intento, onSesionExpirada])
 
@@ -94,44 +95,60 @@ function App({ onSesionExpirada }) {
     setIntento((actual) => actual + 1)
   }
 
-  // Añadir y desembarcar comparten la espera y la actualización de datos.
+  // Todas las acciones actualizan inventario, carga, costo y créditos.
   async function ejecutarAccion(accion) {
-    if (procesando || cargando) return
-
+    if (procesando || cargando || carga?.confirmada) return
     setProcesando(true)
     setError(null)
 
     try {
-      await accion()
+      const respuesta = await accion()
+      if (respuesta?.confirmada) {
+        clearTimeout(temporizadorSesion.current)
+        // Conservamos la confirmación aunque falle la consulta posterior.
+        setCarga(respuesta)
+      }
       const datos = await consultarMision()
-
       setInventario(datos.inventario)
       setCarga(datos.carga)
     } catch (fallo) {
       setError(fallo)
-
-      if (fallo.expirada) {
-        onSesionExpirada?.()
-      }
+      if (fallo.expirada) onSesionExpirada?.()
     } finally {
       setProcesando(false)
     }
   }
 
-  // El catálogo de Michelle utiliza esta función para añadir una unidad.
   function agregarSuministro(id) {
     return ejecutarAccion(() => agregarACarga(id, 1))
   }
 
-  // Envía la nueva cantidad total al servidor.
-  // ejecutarAccion muestra la espera y después actualiza
-  // el inventario, la carga, los créditos y el total.
+  // La cantidad enviada es el total deseado, no una diferencia.
   function actualizarCantidad(id, nuevaCantidad) {
     return ejecutarAccion(() => actualizarUnidades(id, nuevaCantidad))
   }
 
   function desembarcar(id) {
     return ejecutarAccion(() => eliminarSuministro(id))
+  }
+
+  function confirmarEquipamiento() {
+    return ejecutarAccion(confirmarCarga)
+  }
+
+  async function iniciarNuevaMision() {
+    if (procesando) return
+    setProcesando(true)
+    setError(null)
+    try {
+      await reiniciarSesion()
+      // El efecto vuelve a consultar los datos y programa el nuevo plazo.
+      reintentar()
+    } catch (fallo) {
+      setError(fallo)
+    } finally {
+      setProcesando(false)
+    }
   }
 
   if (cargando) {
@@ -149,7 +166,6 @@ function App({ onSesionExpirada }) {
           mensaje={error?.message || 'No se pudo cargar la misión.'}
           onCerrar={() => setError(null)}
         />
-
         <Button color="primary" onClick={reintentar}>
           Volver a consultar
         </Button>
@@ -157,20 +173,31 @@ function App({ onSesionExpirada }) {
     )
   }
 
-  // El backend actual devuelve el presupuesto inicial y el total por separado.
+  // El presupuesto inicial y el total se reciben por separado.
   const creditosDisponibles = carga.creditos - carga.total
+  const confirmada = carga.confirmada === true
+  const controlesBloqueados = procesando || confirmada
 
   return (
     <Container className="py-4 text-start">
-      <PanelMision
-        creditos={creditosDisponibles}
-        total={carga.total}
-      />
+      <PanelMision creditos={creditosDisponibles} total={carga.total} />
+
+      {confirmada && (
+        <Alert color="success" role="status">
+          <h2 className="h5">Equipamiento confirmado</h2>
+          <p>La misión está lista. Los suministros quedaron reservados.</p>
+          <Button
+            color="success"
+            disabled={procesando}
+            onClick={iniciarNuevaMision}
+          >
+            Iniciar nueva misión
+          </Button>
+        </Alert>
+      )}
 
       {procesando && (
-        <p role="status" className="text-info">
-          Calculando peso…
-        </p>
+        <p role="status" className="text-info">Calculando peso…</p>
       )}
 
       <AlertaError
@@ -194,23 +221,30 @@ function App({ onSesionExpirada }) {
         <Col md="8">
           <Catalogo
             inventario={inventario}
-            procesando={procesando}
+            procesando={controlesBloqueados}
             onAgregar={agregarSuministro}
           />
         </Col>
-
         <Col md="4">
-          {/* Entregamos a la bodega las funciones de sus botones. */}
           <BodegaCarga
             inventario={inventario}
             itemsCargados={carga.itemsCargados}
             creditosDisponibles={creditosDisponibles}
-            procesando={procesando}
+            procesando={controlesBloqueados}
             onActualizar={actualizarCantidad}
             onEliminar={desembarcar}
           />
+          {!confirmada && (
+            <Button
+              color="success"
+              className="mt-3 w-100"
+              disabled={procesando || carga.itemsCargados.length === 0}
+              onClick={confirmarEquipamiento}
+            >
+              Confirmar equipamiento
+            </Button>
+          )}
         </Col>
-
       </Row>
     </Container>
   )

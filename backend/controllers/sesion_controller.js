@@ -1,5 +1,5 @@
 //reiniciar inventario inicial
-import { restablecerEstadoInicial } from "../data/inventario.js";
+import { carga, restablecerEstadoInicial } from "../data/inventario.js";
 import {
   obtenerTiempoRestante,
   reiniciarTemporizadorSesion,
@@ -7,7 +7,7 @@ import {
 
 //muestra el tiempo restante de la sesion
 export const obtenerSesion = (req, res) => {
-  res.json({ tiempoRestante: obtenerTiempoRestante() });
+  res.json({ tiempoRestante: obtenerTiempoRestante(), confirmada: carga.confirmada });
 };
 
 // reiniciar la sesión 

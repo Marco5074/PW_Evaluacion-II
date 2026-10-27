@@ -13,8 +13,8 @@ function validarTemperatura(req, res)
     //genera el numero aleatorio
     const {temperatura} = req.body?? {}; 
 
-    if (typeof temperatura != 'number' || temperatura < 1 || temperatura > 100){
-        return res.status(400).json({error: "Debe ingresar un número entre 1 y 100"});
+    if (!Number.isInteger(temperatura) || temperatura < 1 || temperatura > 100){
+        return res.status(400).json({mensaje: "Debe ingresar un número entero entre 1 y 100"});
     }
 
     if (temperatura < temperaturaDeEstabilizacion) {

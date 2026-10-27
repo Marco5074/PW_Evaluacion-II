@@ -18,6 +18,7 @@ const stockInicial = new Map(inventario.map(({ id, stock }) => [id, stock]));
 export const carga = {
   creditos: CREDITOS_INICIALES,
   itemsCargados: [],
+  confirmada: false,
 };
 
 export const restablecerEstadoInicial = () => {
@@ -27,4 +28,5 @@ export const restablecerEstadoInicial = () => {
 
   carga.creditos = CREDITOS_INICIALES;
   carga.itemsCargados.length = 0;
+  carga.confirmada = false;
 };

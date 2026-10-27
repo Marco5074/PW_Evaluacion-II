@@ -34,7 +34,7 @@ function SesionExpirada({ onReiniciar }) {
         <CardBody>
           <h2>La ventana de lanzamiento se cerró</h2>
           <p>
-            Se acabó el tiempo y la sesión expiró. Tu carga fue descartada,
+            Se acabó el tiempo y la sesión expiró. La misión quedó cerrada,
             pero puedes armar una nueva desde cero.
           </p>
 

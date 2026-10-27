@@ -1,3 +1,5 @@
+import { carga } from "../data/inventario.js";
+
 //establecer duración de sesión: 5 minutos
 export const DURACION_SESION_MS = 5 * 60 * 1000;
 
@@ -13,7 +15,7 @@ export const reiniciarTemporizadorSesion = () => {
 
 //mostrar mensaje de la sesión terminada
 export const validarSesion = (req, res, next) => {
-  if (Date.now() - inicioSesion >= DURACION_SESION_MS) {
+  if (!carga.confirmada && Date.now() - inicioSesion >= DURACION_SESION_MS) {
     return res.status(403).json({ mensaje: "La sesión expiró", expirada: true });
   }
 

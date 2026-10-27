@@ -116,3 +116,7 @@ export function reiniciarSesion() {
     method: 'POST',
   })
 }
+// Cierra la carga y conserva los suministros reservados para la misión.
+export function confirmarCarga() {
+  return solicitar('/api/carga/confirmar', { method: 'POST' })
+}

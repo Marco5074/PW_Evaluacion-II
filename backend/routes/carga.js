@@ -7,6 +7,7 @@ import {
   agregarACarga,
   actualizarUnidades,
   eliminarSuministro,
+  confirmarCarga,
 } from "../controllers/carga_controller.js";
 import { validarSesion } from "../middleware/sesion.js";
 
@@ -20,6 +21,7 @@ router.get("/api/carga", obtenerCarga);
 router.post("/api/carga/agregar", agregarACarga);
 router.put("/api/carga/actualizar-unidades/:id" , actualizarUnidades); 
 router.delete("/api/carga/eliminar/:id", eliminarSuministro);
+router.post("/api/carga/confirmar", confirmarCarga);
 
 
 export default router;

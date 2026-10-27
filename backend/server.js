@@ -10,9 +10,10 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+app.use("/", sesionRoutes);
 app.use("/", cargaRoutes);
 app.use("/", reactorRoutes);
-app.use("/", sesionRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

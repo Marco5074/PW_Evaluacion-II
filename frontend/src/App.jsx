@@ -6,8 +6,10 @@ import Catalogo from './components/Catalogo.jsx'
 import AlertaError from './components/AlertaError.jsx'
 import {
   obtenerInventario,
+  obtenerSesion,
   obtenerCarga,
   agregarACarga,
+  actualizarUnidades,
   eliminarSuministro,
 } from './services/api.js'
 
@@ -32,9 +34,29 @@ function App({ onSesionExpirada }) {
 
   useEffect(() => {
     let activo = true
+    let temporizador
 
     async function cargarMision() {
       try {
+        // Pedimos el tiempo que queda; no comenzamos cinco minutos nuevos.
+        const sesion = await obtenerSesion()
+
+        if (!activo) return
+
+        // Si ya se acabó el tiempo, mostramos el aviso inmediatamente.
+        if (sesion.tiempoRestante <= 0) {
+          onSesionExpirada?.()
+          return
+        }
+
+        // Mostramos el aviso al vencer el tiempo, sin esperar otro clic.
+        temporizador = setTimeout(() => {
+          if (activo) {
+            onSesionExpirada?.()
+          }
+        }, sesion.tiempoRestante)
+
+        // Cargamos el inventario y la bodega como antes.
         const datos = await consultarMision()
 
         if (!activo) return
@@ -60,7 +82,9 @@ function App({ onSesionExpirada }) {
     cargarMision()
 
     return () => {
+      // Cancelamos el aviso anterior al salir o volver a consultar.
       activo = false
+      clearTimeout(temporizador)
     }
   }, [intento, onSesionExpirada])
 
@@ -97,6 +121,13 @@ function App({ onSesionExpirada }) {
   // El catálogo de Michelle utiliza esta función para añadir una unidad.
   function agregarSuministro(id) {
     return ejecutarAccion(() => agregarACarga(id, 1))
+  }
+
+  // Envía la nueva cantidad total al servidor.
+  // ejecutarAccion muestra la espera y después actualiza
+  // el inventario, la carga, los créditos y el total.
+  function actualizarCantidad(id, nuevaCantidad) {
+    return ejecutarAccion(() => actualizarUnidades(id, nuevaCantidad))
   }
 
   function desembarcar(id) {
@@ -169,15 +200,17 @@ function App({ onSesionExpirada }) {
         </Col>
 
         <Col md="4">
-          {/* No entregamos onActualizar hasta que la ruta PUT esté lista. */}
+          {/* Entregamos a la bodega las funciones de sus botones. */}
           <BodegaCarga
             inventario={inventario}
             itemsCargados={carga.itemsCargados}
             creditosDisponibles={creditosDisponibles}
             procesando={procesando}
+            onActualizar={actualizarCantidad}
             onEliminar={desembarcar}
           />
         </Col>
+
       </Row>
     </Container>
   )

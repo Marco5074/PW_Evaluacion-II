@@ -84,15 +84,20 @@ export function eliminarSuministro(id) {
   )
 }
 
-// envía un intento de temperatura y eñ servidor responde
-// con "más alta", "más baja" o "estabilizado"
-export function ajustarTemperatura(temperatura) {
-  return solicitar('/adjust', {
+export async function ajustarTemperatura(temperatura) {
+  // Enviamos el número que escribió el usuario.
+  const datos = await solicitar('/adjust', {
     method: 'POST',
     body: JSON.stringify({ temperatura }),
   })
-}
 
+  // Entregamos la respuesta con el nombre que espera la pantalla.
+  // Si ya viene como "resultado", conservamos ese valor.
+  return {
+    ...datos,
+    resultado: datos.resultado ?? datos.mensaje,
+  }
+}
 //pide al servidor una nueva temperatura de estabilizacion
 export function reiniciarReactor() {
   return solicitar('/reboot', {
